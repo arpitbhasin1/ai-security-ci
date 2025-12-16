@@ -62,7 +62,7 @@ export function loadConfig(configPath: string): ToolConfig {
     // optional flags (safe defaults)
     useJudge: parsed.useJudge === true || false,
     maxCalls: parsed.maxCalls ? Number(parsed.maxCalls) : undefined,
-    fail_on_high: parsed.fail_on_high === true || false,
+    fail_on_high: parsed.fail_on_high === true,
     judgeModel: parsed.judgeModel ? String(parsed.judgeModel) : undefined,
     demoMode: parsed.demoMode === true || false,
     logLevel: parsed.logLevel || "normal"

@@ -26,28 +26,35 @@ export function loadAttacks(attacksPath: string): AttackDefinition[] {
 
   const attacks: AttackDefinition[] = parsed.map((item, index) => {
     if (!item || typeof item !== "object") {
-      throw new Error(`Invalid attack definition at index ${index}`);
+      throw new Error(`[${fullPath}] Invalid attack definition at index ${index}: must be an object`);
     }
 
     const { id, category, description, prompt, severity } = item as any;
 
-    // Ensure each attack has required fields
-    if (!id || !category || !description || !prompt || !severity) {
-      throw new Error(`Missing fields in attack definition at index ${index}`);
+    // Ensure each attack has required fields: id, category, description, prompt, severity
+    const missingFields: string[] = [];
+    if (!id) missingFields.push("id");
+    if (!category) missingFields.push("category");
+    if (!description) missingFields.push("description");
+    if (!prompt) missingFields.push("prompt");
+    if (!severity) missingFields.push("severity");
+    
+    if (missingFields.length > 0) {
+      throw new Error(`[${fullPath}] Missing required fields at index ${index}: ${missingFields.join(", ")}`);
     }
 
     const attackId = String(id);
     const attackDescription = String(description);
 
-    // Ensure description is not overly long
-    if (attackDescription.length > 300) {
-      throw new Error("Description too long: " + attackId);
+    // Ensure description length <= 200 characters
+    if (attackDescription.length > 200) {
+      throw new Error(`[${fullPath}] Description too long at index ${index} (attack ID: ${attackId}): ${attackDescription.length} characters (max 200)`);
     }
 
-    // Ensure severity ∈ {"low","medium","high"}
+    // Ensure severity must be one of: "low", "medium", "high"
     if (!validSeverities.includes(severity)) {
       throw new Error(
-        `Invalid severity "${severity}" in attack definition ${attackId}. Must be one of ${validSeverities.join(", ")}`
+        `[${fullPath}] Invalid severity "${severity}" at index ${index} (attack ID: ${attackId}). Must be one of: ${validSeverities.join(", ")}`
       );
     }
 
@@ -62,11 +69,14 @@ export function loadAttacks(attacksPath: string): AttackDefinition[] {
     return attack;
   });
 
-  // Ensure IDs are unique
-  const ids = new Set();
-  for (const a of attacks) {
-    if (ids.has(a.id)) throw new Error("Duplicate attack ID: " + a.id);
-    ids.add(a.id);
+  // Ensure IDs must be unique across the entire file
+  const ids = new Set<string>();
+  for (let i = 0; i < attacks.length; i++) {
+    const attack = attacks[i];
+    if (ids.has(attack.id)) {
+      throw new Error(`[${fullPath}] Duplicate attack ID "${attack.id}" found at index ${i}. IDs must be unique across the entire file.`);
+    }
+    ids.add(attack.id);
   }
 
   return attacks;

@@ -5,3 +5,4 @@ maxTokens: 512
 temperature: 0.2
 useJudge: true
 
+fail_on_high: true

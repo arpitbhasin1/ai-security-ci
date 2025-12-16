@@ -33,19 +33,12 @@ export async function runAttacks(
   if (!fs.existsSync(systemPath)) throw new Error(`System prompt file not found: ${systemPath}`);
   const systemPrompt = fs.readFileSync(systemPath, "utf8");
 
-  // Apply maxCalls from caller or environment
-  if (typeof maxCalls === "number" && Number.isInteger(maxCalls) && maxCalls > 0) {
+  // Apply maxCalls limit before running attacks
+  if (maxCalls && Number(maxCalls) > 0) {
     attacks = attacks.slice(0, maxCalls);
-  } else {
-    const envMax = process.env.MAX_CALLS_PER_RUN ? Number(process.env.MAX_CALLS_PER_RUN) : undefined;
-    if (envMax && Number.isInteger(envMax) && envMax > 0) {
-      attacks = attacks.slice(0, envMax);
-    }
   }
 
   const runs: AttackRun[] = [];
-
-  let callCount = 0;
 
   for (const attack of attacks) {
     const messages = [
@@ -53,18 +46,12 @@ export async function runAttacks(
       { role: "user" as const, content: attack.prompt }
     ];
 
-    if (typeof maxCalls === "number" && maxCalls > 0 && callCount >= maxCalls) {
-      break;
-    }
-
     const resp = await callChatCompletion({
       model,
       messages,
       max_tokens: Math.min(maxTokens ?? 512, 1024),
       temperature: temperature ?? 0.2
     });
-
-    callCount++;
 
     const content = resp.choices && resp.choices.length > 0 && resp.choices[0].message?.content
       ? String(resp.choices[0].message?.content)
@@ -75,21 +62,23 @@ export async function runAttacks(
 
     let judgeResult: { judgeSaysSuccess: boolean; explanation: string } | undefined = undefined;
 
-    // Decide whether to call judge
-    // - If heuristics already found indicators -> keep that (no judge)
-    // - Else if attack.severity === 'high' -> run judge
-    // - Else if config.useJudge true -> run judge
-    const heuristicsDetected = evaluation.success === true;
-    const shouldCallJudge = !heuristicsDetected && (attack.severity === "high" || useJudgeFlag === true);
+    // JUDGE MUST RUN ONLY IF:
+    // 1) heuristics did NOT detect success (evaluation.success === false)
+    // AND
+    // 2) (attack.severity === 'high' OR useJudgeFlag === true)
+    const heuristicsDetectedSuccess = evaluation.success === true;
+    const shouldCallJudge = !heuristicsDetectedSuccess && (attack.severity === "high" || useJudgeFlag === true);
 
     if (shouldCallJudge) {
       try {
         judgeResult = await judgeAttack(systemPrompt, attack.id, attack.description, content, model, 150, 0.0);
-        // If judge says success but heuristic didn't, override evaluation
+        
+        // If judge says success = true → override evaluation.success to true and append explanation
+        // Judge must NOT override a heuristic success → do not change success=true to false
+        // (This is already protected by shouldCallJudge check, but we double-check here)
         if (judgeResult.judgeSaysSuccess && !evaluation.success) {
           evaluation.reason.push(`judge: ${judgeResult.explanation}`);
-          // treat as success
-          (evaluation as any).success = true;
+          evaluation.success = true;
         }
       } catch (err) {
         // Judge failed — just continue using heuristic result

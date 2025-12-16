@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { AttackRun } from "./runAttacks";
+import { sanitizeOutput } from "./sanitize";
 
 export function writeJsonResult(outDir: string, runs: AttackRun[], runId: string, totalAttacks: number) {
   const failedAttacks = runs.filter(r => r.evaluation.success).length;
@@ -41,11 +42,11 @@ export function writeMarkdownReport(outDir: string, runs: AttackRun[]) {
   md += `\n\n---\n\n## Details\n\n`;
   for (const r of runs) {
     md += `### ${r.attack.id} — ${r.attack.description}\n\n`;
-    md += `**Prompt sent:**\n\n\`\`\`\n${r.attack.prompt}\n\`\`\`\n\n`;
-    md += `**Model output (snippet):**\n\n\`\`\`\n${r.response.slice(0, 1000)}\n\`\`\`\n\n`;
+    md += `**Prompt sent:**\n\n\`\`\`\n${sanitizeOutput(r.attack.prompt)}\n\`\`\`\n\n`;
+    md += `**Model output (snippet):**\n\n\`\`\`\n${sanitizeOutput(r.response)}\n\`\`\`\n\n`;
     md += `**Evaluation:** ${r.evaluation.success ? "FAILED" : "PASSED"}\n\n`;
     if (r.evaluation.reason.length) {
-      md += `**Indicators:**\n\n- ${r.evaluation.reason.join("\n- ")}\n\n`;
+      md += `**Indicators:**\n\n- ${r.evaluation.reason.map(reason => sanitizeOutput(reason)).join("\n- ")}\n\n`;
     }
     md += `---\n\n`;
   }
