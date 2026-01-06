@@ -1,18 +1,22 @@
 name: "AI Prompt Security Test"
 description: "Run AI prompt security tests in CI"
 author: "Arpit"
+
+branding:
+  icon: "shield"
+  color: "purple"
+
 inputs:
   config_path:
-    description: 'Path to ai-sec-config.yaml'
+    description: "Path to ai-sec-config.yaml"
     required: false
-    default: 'examples/ai-sec-config.yaml'
+    default: "examples/ai-sec-config.yaml"
+
   fail_on_high:
-    description: 'Fail CI job on high-severity finding'
+    description: "Fail CI job on high-severity finding"
     required: false
-    default: 'true'
+    default: "true"
+
 runs:
   using: "node16"
   main: "dist/index.js"
-
-
-
